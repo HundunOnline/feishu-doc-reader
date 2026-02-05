@@ -1,12 +1,12 @@
 ---
 name: feishu-doc-reader
-description: Read and extract content from Feishu (Lark) documents using the official Feishu Open API
+description: Read and extract content from all Feishu (Lark) document types using the official Feishu Open API
 metadata: {"moltbot":{"emoji":"📄","requires":{"bins":["python3","curl"]}}}
 ---
 
 # Feishu Document Reader
 
-This skill enables reading and extracting content from Feishu (Lark) documents using the official Feishu Open API.
+This skill enables reading and extracting content from all Feishu (Lark) document types using the official Feishu Open API.
 
 ## Configuration
 
@@ -24,6 +24,7 @@ This skill enables reading and extracting content from Feishu (Lark) documents u
 2. Make sure the scripts are executable:
 ```bash
 chmod +x scripts/read_doc.sh
+chmod +x scripts/read_feishu.sh
 chmod +x scripts/get_blocks.sh
 ```
 
@@ -31,48 +32,96 @@ chmod +x scripts/get_blocks.sh
 
 ## Usage
 
-### Basic Document Reading
+### Unified Document Reader (推荐)
 
-To read a Feishu document, you need the document token (found in the URL: `https://example.feishu.cn/docx/DOC_TOKEN`).
+使用统一文档读取器可以自动识别并读取所有支持的文档类型：
 
-**Using the shell script (recommended):**
 ```bash
-# Make sure environment variables are set first
-./scripts/read_doc.sh "your_doc_token_here"
+# 自动识别文档类型并读取
+./scripts/read_feishu.sh "docx_xxxxxxxxxxxxxx"
+./scripts/read_feishu.sh "sheet_xxxxxxxxxxxxx"
+./scripts/read_feishu.sh "basexxxxxxxxxxxxxx"
+./scripts/read_feishu.sh "wikcnxxxxxxxxxxxxx"
 
-# Or specify document type explicitly
-./scripts/read_doc.sh "docx_token" "doc"
-./scripts/read_doc.sh "sheet_token" "sheet"
+# 从URL直接读取
+./scripts/read_feishu.sh "https://xxx.feishu.cn/docx/xxxxx"
+
+# 指定文档类型
+./scripts/read_feishu.sh "token" --type bitable
+
+# 格式化JSON输出
+./scripts/read_feishu.sh "token" --pretty
+
+# 只输出文本内容
+./scripts/read_feishu.sh "docx_token" --output text
 ```
 
-### Get Detailed Document Blocks (NEW)
+### Wiki Knowledge Base (知识库)
 
-For complete document structure with all blocks, use the dedicated blocks script:
+读取飞书知识库节点和内容：
+
+```bash
+# 读取单个Wiki节点
+./scripts/read_feishu.sh "wikcnxxxxxxxxxxxxxx" --type wiki
+
+# 读取整个知识空间
+./scripts/read_feishu.sh --wiki-space "SPACE_ID"
+
+# 递归读取所有子节点内容
+./scripts/read_feishu.sh --wiki-space "SPACE_ID" --recursive
+```
+
+### Bitable (多维表格)
+
+读取飞书多维表格数据：
+
+```bash
+# 读取多维表格（包含所有数据表和记录）
+./scripts/read_feishu.sh "basexxxxxxxxxxxxxx" --type bitable
+```
+
+### Basic Document Reading
+
+```bash
+# 读取新版文档
+./scripts/read_doc.sh "docx_xxxxxxxxxxxxxx"
+
+# 读取电子表格
+./scripts/read_doc.sh "sheet_xxxxxxxxxxxxx" sheet
+
+# 读取多维表格
+./scripts/read_doc.sh "basexxxxxxxxxxxxxx" bitable
+
+# 读取知识库节点
+./scripts/read_doc.sh "wikcnxxxxxxxxxxxxx" wiki
+```
+
+### Get Detailed Document Blocks
+
+For complete document structure with all blocks:
 
 ```bash
 # Get full document blocks structure
 ./scripts/get_blocks.sh "docx_AbCdEfGhIjKlMnOpQrStUv"
-
-# Get specific block by ID
-./scripts/get_blocks.sh "docx_token" "block_id"
-
-# Get blocks with children
-./scripts/get_blocks.sh "docx_token" "" "true"
 ```
 
-**Using Python directly for blocks:**
+**Using Python directly:**
 ```bash
-python scripts/get_feishu_doc_blocks.py --doc-token "your_doc_token_here"
-python scripts/get_feishu_doc_blocks.py --doc-token "docx_token" --block-id "block_id"
-python scripts/get_feishu_doc_blocks.py --doc-token "docx_token" --include-children
+python scripts/feishu_reader.py "docx_token" --pretty
+python scripts/feishu_reader.py "sheet_token" --type sheet
+python scripts/feishu_reader.py --wiki-space "SPACE_ID" --recursive
 ```
 
 ### Supported Document Types
 
-- **Docx documents** (new Feishu docs): Full content extraction with blocks, metadata, and structure
-- **Doc documents** (legacy): Basic metadata and limited content  
-- **Sheets**: Full spreadsheet data extraction with sheet navigation
-- **Slides**: Basic metadata (content extraction requires additional permissions)
+| 类型 | Token前缀 | 说明 | 支持程度 |
+|------|----------|------|---------|
+| **docx** | `docx_` | 新版飞书文档 | ✅ 完整支持 |
+| **doc** | `doc_` | 旧版飞书文档 | ✅ 基本支持 |
+| **sheet** | `sheet_`, `shtcn` | 电子表格 | ✅ 完整支持 |
+| **bitable** | `base`, `bascn` | 多维表格 | ✅ 完整支持 |
+| **wiki** | `wikcn` | 知识库节点 | ✅ 完整支持 |
+| **slides** | - | 幻灯片 | ⚠️ 仅元数据 |
 
 ## Features
 
@@ -138,48 +187,110 @@ python scripts/get_feishu_doc_blocks.py --help
 
 ## API Permissions Required
 
-Your Feishu app needs the following permissions:
-- `docx:document:readonly` - Read document content
-- `doc:document:readonly` - Read legacy document content  
-- `sheets:spreadsheet:readonly` - Read spreadsheet content
+Your Feishu app needs the following permissions based on document types:
+
+### 基础权限（必需）
+- `docx:document:readonly` - 读取新版文档内容
+- `doc:document:readonly` - 读取旧版文档内容
+
+### 电子表格
+- `sheets:spreadsheet:readonly` - 读取电子表格内容
+
+### 多维表格 (Bitable)
+- `bitable:app:readonly` - 读取多维表格元信息
+- `bitable:record:read` - 读取多维表格记录
+
+### 知识库 (Wiki)
+- `wiki:wiki:readonly` - 读取知识库节点信息
+
+### 云空间（可选）
+- `drive:drive:readonly` - 读取云空间文件信息
 
 ## Error Handling
 
 Common errors and solutions:
-- **403 Forbidden**: Check app permissions and document sharing settings
-- **404 Not Found**: Verify document token is correct and document exists
-- **Token expired**: Access tokens are valid for 2 hours, refresh as needed
-- **App ID/Secret invalid**: Double-check your credentials in Feishu Open Platform
-- **Insufficient permissions**: Ensure your app has the required API permissions
-- **99991663**: Application doesn't have permission to access the document
-- **99991664**: Document doesn't exist or has been deleted
-- **99991668**: Token expired, need to refresh
+
+### 认证错误
+- **401 Unauthorized**: 检查 App ID 和 App Secret 是否正确
+- **Token expired**: 访问令牌2小时过期，会自动刷新
+
+### 权限错误
+- **403 Forbidden**: 检查应用权限配置和文档共享设置
+- **99991663**: 应用没有访问该文档的权限
+- **10002**: 应用权限不足，请在开放平台配置所需权限
+
+### 资源错误
+- **404 Not Found**: 检查文档token是否正确
+- **99991664**: 文档不存在或已被删除
+
+### 特定类型错误
+- **Wiki节点无法读取**: 检查 `wiki:wiki:readonly` 权限
+- **Bitable记录为空**: 检查 `bitable:record:read` 权限
+- **Sheet数据缺失**: 检查工作表是否有数据，权限是否足够
 
 ## Examples
 
-### Extract document with full structure
+### 读取各类文档
+
 ```bash
-# Read document
-./scripts/read_doc.sh "docx_AbCdEfGhIjKlMnOpQrStUv"
+# 新版文档 (docx)
+./scripts/read_feishu.sh "docx_AbCdEfGhIjKlMnOp" --pretty
+
+# 电子表格 (sheet)
+./scripts/read_feishu.sh "sheet_XyZ123AbCdEfGh" --type sheet
+
+# 多维表格 (bitable)
+./scripts/read_feishu.sh "baseAbCdEfGhIjKlMn" --type bitable --pretty
+
+# 知识库节点 (wiki)
+./scripts/read_feishu.sh "wikcnAbCdEfGhIjKl" --type wiki
 ```
 
-### Get complete document blocks (NEW)
-```bash
-# Get all blocks with full structure
-./scripts/get_blocks.sh "docx_AbCdEfGhIjKlMnOpQrStUv"
+### 知识库操作
 
-# Get specific block details
-./scripts/get_blocks.sh "docx_AbCdEfGhIjKlMnOpQrStUv" "blk_xxxxxxxxxxxxxx"
+```bash
+# 读取单个节点及其内容
+./scripts/read_feishu.sh "wikcnAbCdEfGhIjKl" --type wiki --pretty
+
+# 读取整个知识空间
+./scripts/read_feishu.sh --wiki-space "7xxxxxxxxxx" --pretty
+
+# 递归读取知识空间所有内容
+./scripts/read_feishu.sh --wiki-space "7xxxxxxxxxx" --recursive
 ```
 
-### Process spreadsheet data
+### 从URL读取
+
 ```bash
-./scripts/read_doc.sh "sheet_XyZ123AbCdEfGhIj" "sheet"
+# 直接从飞书URL读取（自动识别类型）
+./scripts/read_feishu.sh "https://xxx.feishu.cn/docx/xxxxx"
+./scripts/read_feishu.sh "https://xxx.feishu.cn/wiki/xxxxx"
+./scripts/read_feishu.sh "https://xxx.feishu.cn/base/xxxxx"
 ```
 
-### Extract only text content (Python script)
+### 输出格式控制
+
 ```bash
-python scripts/read_feishu_doc.py --doc-token "docx_token" --extract-text-only
+# JSON格式（默认）
+./scripts/read_feishu.sh "docx_token"
+
+# 格式化JSON
+./scripts/read_feishu.sh "docx_token" --pretty
+
+# 仅输出纯文本
+./scripts/read_feishu.sh "docx_token" --output text
+```
+
+### Python直接调用
+
+```bash
+# 统一读取器
+python scripts/feishu_reader.py "docx_token" --pretty
+python scripts/feishu_reader.py "base_token" --type bitable
+python scripts/feishu_reader.py --wiki-space "SPACE_ID" --recursive
+
+# 文档blocks专用
+python scripts/get_feishu_doc_blocks.py "docx_token"
 ```
 
 ## Security Notes
@@ -215,8 +326,20 @@ python scripts/read_feishu_doc.py --doc-token "docx_token" --extract-text-only
 
 ## References
 
+### 官方文档
 - [Feishu Open API Documentation](https://open.feishu.cn/document)
-- [Document API Reference](https://open.feishu.cn/document/server-docs/docs/docx-v1/document)
-- [Blocks API Reference](https://open.feishu.cn/document/server-docs/docs/docx-v1/block)
 - [Authentication Guide](https://open.feishu.cn/document/server-docs/authentication-management/access-token/tenant_access_token_internal)
-- [Sheet API Reference](https://open.feishu.cn/document/server-docs/sheets-v3/introduction)
+
+### 文档相关
+- [Document API (docx)](https://open.feishu.cn/document/server-docs/docs/docx-v1/document)
+- [Blocks API Reference](https://open.feishu.cn/document/server-docs/docs/docx-v1/document-block)
+
+### 表格相关
+- [Sheet API Reference](https://open.feishu.cn/document/server-docs/docs/sheets-v3/spreadsheet/get)
+- [Bitable API Reference](https://open.feishu.cn/document/server-docs/docs/bitable-v1/app/get)
+- [Bitable Records API](https://open.feishu.cn/document/server-docs/docs/bitable-v1/app-table-record/list)
+
+### 知识库相关
+- [Wiki API Overview](https://open.feishu.cn/document/server-docs/docs/wiki-v2/wiki-overview)
+- [Wiki Node API](https://open.feishu.cn/document/server-docs/docs/wiki-v2/space-node/list)
+- [Get Wiki Node](https://open.feishu.cn/document/ukTMukTMukTM/uUDN04SN0QjL1QDN/wiki-v2/space/get_node)

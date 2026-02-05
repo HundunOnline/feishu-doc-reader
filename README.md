@@ -1,14 +1,19 @@
-# Feishu Document Reader - Blocks Extraction
+# Feishu Document Reader - 飞书文档统一读取器
 
-This skill provides comprehensive Feishu (Lark) document reading capabilities with full blocks extraction support.
+全面支持飞书(Lark)各类在线文档的读取，包括文档、表格、知识库等。
 
 ## Features
 
-- **Full blocks extraction**: Get complete document structure including text, tables, images, headings, and more
-- **Multiple document types**: Support for Docx (new), Doc (legacy), Sheets, and Slides
-- **Secure authentication**: Proper token management with caching and refresh
-- **Error handling**: Comprehensive error messages and diagnostics
-- **Easy integration**: Simple command-line interface and Python API
+- **多文档类型支持**: 
+  - ✅ Docx (新版文档) - 完整blocks结构和内容
+  - ✅ Doc (旧版文档) - 基本支持
+  - ✅ Sheet (电子表格) - 完整数据读取
+  - ✅ Bitable (多维表格) - 字段和记录完整提取
+  - ✅ Wiki (知识库) - 节点信息和内容读取
+- **自动类型识别**: 根据token或URL自动识别文档类型
+- **统一接口**: 一个命令读取所有类型
+- **安全认证**: 自动令牌管理和刷新
+- **完善的错误处理**: 详细的错误信息和诊断
 
 ## Quick Start
 
@@ -26,30 +31,68 @@ Create `./reference/feishu_config.json`:
 Set proper permissions:
 ```bash
 chmod 600 ./reference/feishu_config.json
+chmod +x scripts/*.sh
 ```
 
 ### 2. Usage
 
-#### Get full document blocks (recommended):
+#### 统一读取器（推荐）:
 ```bash
-# Using shell wrapper
-./scripts/get_blocks.sh "docx_your_document_token"
+# 自动识别文档类型
+./scripts/read_feishu.sh "docx_your_document_token"
+./scripts/read_feishu.sh "sheet_xxxxxxxxxxxxx"
+./scripts/read_feishu.sh "basexxxxxxxxxxxxxx"
+./scripts/read_feishu.sh "wikcnxxxxxxxxxxxxx"
 
-# Using Python directly  
-python scripts/get_feishu_doc_blocks.py --doc-token "docx_your_document_token" --output-format json
+# 从URL读取
+./scripts/read_feishu.sh "https://xxx.feishu.cn/docx/xxxxx"
+
+# 格式化输出
+./scripts/read_feishu.sh "docx_token" --pretty
 ```
 
-#### Get simplified text only:
+#### 读取知识库:
 ```bash
-python scripts/get_feishu_doc_blocks.py --doc-token "docx_your_document_token" --extract-text-only
+# 读取单个节点
+./scripts/read_feishu.sh "wikcn_token" --type wiki
+
+# 读取整个知识空间
+./scripts/read_feishu.sh --wiki-space "SPACE_ID" --recursive
+```
+
+#### 读取多维表格:
+```bash
+./scripts/read_feishu.sh "base_token" --type bitable --pretty
+```
+
+#### Python直接调用:
+```bash
+python scripts/feishu_reader.py "docx_token" --pretty
+python scripts/feishu_reader.py "base_token" --type bitable
+python scripts/feishu_reader.py --wiki-space "SPACE_ID"
 ```
 
 ### 3. Output Format
 
-The full blocks output includes:
-- `document`: Document metadata (title, revision, etc.)
-- `blocks`: Complete block hierarchy with all content types
-- `text_content`: Extracted plain text (when requested)
+输出包含以下内容（根据文档类型有所不同）:
+
+**文档 (docx/doc)**:
+- `document`: 文档元信息
+- `blocks`: 完整的blocks结构
+- `text_content`: 提取的纯文本
+
+**电子表格 (sheet)**:
+- `spreadsheet`: 表格元信息
+- `sheets`: 各工作表数据
+
+**多维表格 (bitable)**:
+- `app`: 多维表格元信息
+- `tables`: 数据表列表（含字段和记录）
+
+**知识库 (wiki)**:
+- `node`: 节点信息
+- `content`: 节点实际内容
+- `children`: 子节点列表
 
 ## Integration with AI Agents
 
@@ -61,10 +104,21 @@ This skill can be used as a standalone tool or integrated into AI agent workflow
 
 ## API Permissions Required
 
-Your Feishu app needs these permissions in Open Platform:
-- `docx:document:readonly` (for new documents)
-- `doc:document:readonly` (for legacy documents)
-- `sheets:spreadsheet:readonly` (for spreadsheets)
+在飞书开放平台配置以下权限:
+
+### 基础权限
+- `docx:document:readonly` - 新版文档
+- `doc:document:readonly` - 旧版文档
+
+### 电子表格
+- `sheets:spreadsheet:readonly` - 电子表格
+
+### 多维表格 (Bitable)
+- `bitable:app:readonly` - 多维表格元信息
+- `bitable:record:read` - 多维表格记录
+
+### 知识库 (Wiki)
+- `wiki:wiki:readonly` - 知识库节点
 
 ## Security Notes
 
